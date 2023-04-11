@@ -127,7 +127,66 @@ app.get("/user/tweets/feed/", authenticateToken, async (request, response) => {
                                     tweet.date_time DESC
                                     LIMIT 4;`;
   const latestDbTweets = await db.all(getLatestTweetsQuery);
-  console.log(latestDbTweets);
+  response.send(latestDbTweets);
+});
+
+// API 4
+
+app.get("/user/following/", authenticateToken, async (request, response) => {
+  let { username } = request;
+  console.log(username);
+  const getLoggedInUserId = `SELECT user_id
+                                  FROM user
+                                  WHERE username = '${username}'; `;
+  const dbUserId = await db.get(getLoggedInUserId);
+  console.log(dbUserId);
+  const getFollowerNamesQuery = `SELECT user.name
+                                    FROM follower 
+                                    INNER JOIN user
+                                    ON user.user_id = follower.following_user_id
+                                    WHERE follower.follower_user_id = ${dbUserId.user_id};`;
+  const followerNames = await db.all(getFollowerNamesQuery);
+  console.log(followerNames);
+  response.send(followerNames);
+});
+
+// API 5
+
+app.get("/user/followers/", authenticateToken, async (request, response) => {
+  let { username } = request;
+  const getLoggedInUserId = `SELECT user_id
+                                  FROM user
+                                  WHERE username = '${username}'; `;
+  const dbUserId = await db.get(getLoggedInUserId);
+  const getFollowingNamesQuery = `SELECT user.name
+                                     FROM follower
+                                     INNER JOIN user
+                                     ON user.user_id = follower.follower_user_id
+                                     WHERE follower.following_user_id = ${dbUserId.user_id};`;
+  const followingNames = await db.all(getFollowingNamesQuery);
+  console.log(followingNames);
+  response.send(followingNames);
+});
+
+// API 6
+app.get("/tweets/:tweetId/", authenticateToken, async (request, response) => {
+  let { username } = request;
+  const getLoggedInUserId = `SELECT user_id 
+                                FROM user
+                                WHERE username = '${username}';`;
+  const dbUserId = await db.get(getLoggedInUserId);
+  const getFollowingUserIdsQuery = `SELECT user.user_id
+                                        FROM user
+                                        INNER JOIN follower
+                                        ON user.user_id = follower.following_user_id
+                                        INNER JOIN
+                                        tweet
+                                        ON tweet.user_id = user.user_id
+                                        WHERE follower.follower_user_id = ${dbUserId.user_id};`;
+  const followingUserIds = await db.all(getFollowingUserIdsQuery);
+  console.log(followingUserIds);
+  
+                                        `;
 });
 
 module.exports = app;
