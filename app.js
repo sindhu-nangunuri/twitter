@@ -187,20 +187,21 @@ app.get("/tweets/:tweetId/", authenticateToken, async (request, response) => {
     
                                  WHERE follower.follower_user_id = ${dbUserId.user_id};`;
   const userFollowers = await db.all(userFollowersQuery);
+  console.log(userFollowers);
   if (
     userFollowers.some((item) => item.following_user_id === tweetResult.user_id)
   ) {
-    const getTweetsQuery = `SELECT * FROM
-                              tweet INNER JOIN reply ON tweet.user_id = reply.user_id
-                              INNER JOIN like ON tweet.tweet_id = like.user_id
+    const getTweetsQuery = `SELECT tweet.tweet, COUNT(like_id) AS likes, COUNT(reply) AS replies, date_time AS dateTime FROM
+                              (tweet INNER JOIN reply ON tweet.tweet_id = reply.tweet_id) AS T 
+                              INNER JOIN like ON T.tweet_id = like.tweet_id
                               WHERE tweet.tweet_id = ${tweetId};`;
-    const result = await db.get(getTweetsQuery);
+    const result = await db.all(getTweetsQuery);
     console.log(result);
+    response.send(result);
   } else {
     response.status(401);
     response.send("Invalid Request");
   }
-  console.log(userFollowers);
 });
 
 // API 9
@@ -218,7 +219,8 @@ app.get("/user/tweets/", authenticateToken, async (request, response) => {
                            INNER JOIN like ON T.tweet_id = like.tweet_id
                            WHERE tweet.user_id = ${dbUserId.user_id}
                            GROUP BY 
-                           tweet;`;
+                           tweet
+                           ;`;
   const tweetResults = await db.all(getUserTweets);
   console.log(tweetResults);
   response.send(tweetResults);
