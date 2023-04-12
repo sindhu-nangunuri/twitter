@@ -203,4 +203,25 @@ app.get("/tweets/:tweetId/", authenticateToken, async (request, response) => {
   console.log(userFollowers);
 });
 
+// API 9
+
+app.get("/user/tweets/", authenticateToken, async (request, response) => {
+  let { username } = request;
+  const getLoggedInUserId = `SELECT user_id
+                                  FROM user
+                                  WHERE username = '${username}'; `;
+  const dbUserId = await db.get(getLoggedInUserId);
+  console.log(dbUserId);
+  const getUserTweets = `SELECT tweet.tweet, COUNT(like_id) AS likes, COUNT(reply) AS reply, date_time AS dateTime
+                           FROM (tweet 
+                           INNER JOIN reply ON tweet.tweet_id = reply.tweet_id) AS T 
+                           INNER JOIN like ON T.tweet_id = like.tweet_id
+                           WHERE tweet.user_id = ${dbUserId.user_id}
+                           GROUP BY 
+                           tweet;`;
+  const tweetResults = await db.all(getUserTweets);
+  console.log(tweetResults);
+  response.send(tweetResults);
+});
+
 module.exports = app;
