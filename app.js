@@ -191,11 +191,26 @@ app.get("/tweets/:tweetId/", authenticateToken, async (request, response) => {
   if (
     userFollowers.some((item) => item.following_user_id === tweetResult.user_id)
   ) {
-    const getTweetsQuery = `SELECT tweet.tweet, COUNT(like_id) AS likes, COUNT(reply) AS replies, date_time AS dateTime FROM
-                              (tweet INNER JOIN reply ON tweet.tweet_id = reply.tweet_id) AS T 
-                              INNER JOIN like ON T.tweet_id = like.tweet_id
-                              WHERE tweet.tweet_id = ${tweetId};`;
-    const result = await db.all(getTweetsQuery);
+    //const getTweetsQuery = `SELECT tweet.tweet, COUNT(like_id) AS likes, COUNT(reply) AS replies, date_time AS dateTime FROM
+    //                          (tweet INNER JOIN reply ON tweet.tweet_id = reply.tweet_id) AS T
+    //                        INNER JOIN like ON T.tweet_id = like.tweet_id
+    //                      WHERE tweet.tweet_id = ${tweetId};`;
+    const getTweetsQuery = `SELECT tweet, 
+        (
+            SELECT COUNT(like_id)
+            FROM like
+            WHERE tweet_id = tweet.tweet_id
+        ) AS likes,
+        (
+            SELECT COUNT(reply_id)
+            FROM reply
+            WHERE tweet_id = tweet.tweet_id
+        ) AS replies,
+        date_time AS dateTime
+        FROM tweet 
+        WHERE tweet.tweet_id = ${tweetId};`;
+
+    const result = await db.get(getTweetsQuery);
     console.log(result);
     response.send(result);
   } else {
@@ -213,14 +228,21 @@ app.get("/user/tweets/", authenticateToken, async (request, response) => {
                                   WHERE username = '${username}'; `;
   const dbUserId = await db.get(getLoggedInUserId);
   console.log(dbUserId);
-  const getUserTweets = `SELECT tweet.tweet, COUNT(like_id) AS likes, COUNT(reply) AS replies, date_time AS dateTime
-                           FROM (tweet 
-                           INNER JOIN reply ON tweet.tweet_id = reply.tweet_id) AS T 
-                           INNER JOIN like ON T.tweet_id = like.tweet_id
-                           WHERE tweet.user_id = ${dbUserId.user_id}
-                           GROUP BY 
-                           tweet
-                           ;`;
+  const getUserTweets = `SELECT
+tweet,
+(
+SELECT COUNT(like_id)
+FROM like
+WHERE tweet_id=tweet.tweet_id
+) AS likes,
+(
+SELECT COUNT(reply_id)
+FROM reply
+WHERE tweet_id=tweet.tweet_id
+) AS replies,
+date_time AS dateTime
+FROM tweet
+WHERE user_id= ${dbUserId.user_id};`;
   const tweetResults = await db.all(getUserTweets);
   console.log(tweetResults);
   response.send(tweetResults);
@@ -273,4 +295,47 @@ app.delete(
     }
   }
 );
+
+// API 7
+app.get(
+  "/tweets/:tweetId/likes/",
+  authenticateToken,
+  async (request, response) => {
+    const { tweetId } = request.params;
+    let { username } = request;
+    const getLoggedInUserId = `SELECT user_id
+                                  FROM user
+                                  WHERE username = '${username}'; `;
+    const dbUserId = await db.get(getLoggedInUserId);
+    console.log(dbUserId);
+    const tweetsQuery = `SELECT * FROM 
+                         tweet
+                         WHERE tweet_id = ${tweetId};`;
+    const tweetResult = await db.get(tweetsQuery);
+    console.log(tweetResult);
+    const userFollowersQuery = `SELECT *  FROM 
+                                 follower INNER JOIN user ON user.user_id = follower.following_user_id
+    
+                                 WHERE follower.follower_user_id = ${dbUserId.user_id};`;
+    const userFollowers = await db.all(userFollowersQuery);
+    console.log(userFollowers);
+    if (
+      userFollowers.some(
+        (item) => item.following_user_id === tweetResult.user_id
+      )
+    ) {
+      const getTweetLikesQuery = `SELECT (user.username) AS likes
+                                       FROM like INNER JOIN user ON like.user_id = user.user_id
+                                       WHERE tweet_id = ${tweetId};`;
+      const likesUserId = await db.all(getTweetLikesQuery);
+
+      console.log(likesUserId);
+      response.send(likesUserId);
+    } else {
+      response.status(401);
+      response.send("Invalid Request");
+    }
+  }
+);
+
 module.exports = app;
