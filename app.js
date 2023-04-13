@@ -338,4 +338,45 @@ app.get(
   }
 );
 
+// API 8
+
+app.get(
+  "/tweets/:tweetId/replies/",
+  authenticateToken,
+  async (request, response) => {
+    const { tweetId } = request.params;
+    let { username } = request;
+    const getLoggedInUserId = `SELECT user_id
+                                  FROM user
+                                  WHERE username = '${username}'; `;
+    const dbUserId = await db.get(getLoggedInUserId);
+    console.log(dbUserId);
+    const tweetsQuery = `SELECT * FROM 
+                         tweet
+                         WHERE tweet_id = ${tweetId};`;
+    const tweetResult = await db.get(tweetsQuery);
+    console.log(tweetResult);
+    const userFollowersQuery = `SELECT *  FROM 
+                                 follower INNER JOIN user ON user.user_id = follower.following_user_id
+    
+                                 WHERE follower.follower_user_id = ${dbUserId.user_id};`;
+    const userFollowers = await db.all(userFollowersQuery);
+    console.log(userFollowers);
+    if (
+      userFollowers.some(
+        (item) => item.following_user_id === tweetResult.user_id
+      )
+    ) {
+      const getTweetsRepliesQuery = `SELECT user.name
+                                          FROM reply INNER JOIN user ON reply.user_id = user.user_id
+                                          WHERE tweet_id = ${tweetId};`;
+      const tweetsReplies = await db.all(getTweetsRepliesQuery);
+      console.log(tweetsReplies);
+    } else {
+      response.status(401);
+      response.send("Invalid Request");
+    }
+  }
+);
+
 module.exports = app;
